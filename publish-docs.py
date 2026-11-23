@@ -21,6 +21,7 @@ USER = os.environ.get("DOCKERHUB_USERNAME", "nyingi").strip()
 TOKEN = os.environ.get("DOCKERHUB_TOKEN", "").strip()
 REPO = os.environ.get("DOCKERHUB_REPOSITORY", "pdfer").strip()
 README = os.path.join(ROOT, "README.dockerhub.md")
+SHORT = "Template + JSON in, PDF out. One container, no database."
 
 if not TOKEN:
     print("DOCKERHUB_TOKEN is not set; skipping the Docker Hub docs update.")
@@ -80,7 +81,7 @@ if "--inspect" in sys.argv:
 
 status, body = request(
     f"https://hub.docker.com/v2/repositories/{USER}/{REPO}/",
-    {"full_description": description},
+    {"full_description": description, "description": SHORT},
     {"Authorization": f"JWT {jwt}"},
     method="PATCH",
 )
