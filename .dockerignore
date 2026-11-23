@@ -2,10 +2,11 @@ node_modules
 .pdfer-data
 .git
 .gitignore
-test
-conformance
 *.log
 Dockerfile
 docker-compose.yml
 templated-document-engine-BRS.md
 SPEC-v1.1.md
+examples
+docs
+*.pdf
