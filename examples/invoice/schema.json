@@ -1,0 +1,42 @@
+{
+  "schemas": [
+    {
+      "documentType": "example-invoice",
+      "schemaVersion": 1,
+      "root": [
+        { "name": "invoiceNumber", "displayLabel": "Invoice number", "group": "Header", "dataType": "string", "isRequired": true, "sampleValue": "INV-0001" },
+        { "name": "issuedOn", "displayLabel": "Issue date", "group": "Header", "dataType": "date", "formatHint": "yyyy-MM-dd", "isRequired": true, "sampleValue": "2026-01-31" },
+        { "name": "dueOn", "displayLabel": "Due date", "group": "Header", "dataType": "date", "formatHint": "yyyy-MM-dd", "isRequired": false, "sampleValue": "2026-02-28" },
+        { "name": "currency", "displayLabel": "Currency", "group": "Header", "dataType": "string", "isRequired": true, "sampleValue": "KES" },
+        { "name": "customerName", "displayLabel": "Customer", "group": "Bill to", "dataType": "string", "isRequired": true, "sampleValue": "EXAMPLE CUSTOMER" },
+        { "name": "customerAddress", "displayLabel": "Customer address", "group": "Bill to", "dataType": "string", "isRequired": false, "sampleValue": "1 EXAMPLE STREET\nEXAMPLE CITY" },
+        { "name": "notes", "displayLabel": "Notes", "group": "Footer", "dataType": "string", "isRequired": false, "sampleValue": "Payment due within 30 days." },
+        {
+          "name": "items",
+          "displayLabel": "Line items",
+          "group": "Lines",
+          "dataType": "collection",
+          "isCollection": true,
+          "isRequired": false,
+          "loopVariable": "item",
+          "sampleValue": null,
+          "children": [
+            { "name": "description", "displayLabel": "Description", "group": "Lines", "dataType": "string", "isRequired": true, "sampleValue": "EXAMPLE ITEM" },
+            { "name": "quantity", "displayLabel": "Quantity", "group": "Lines", "dataType": "number", "formatHint": "0.###", "isRequired": true, "sampleValue": 2 },
+            { "name": "unitPrice", "displayLabel": "Unit price", "group": "Lines", "dataType": "money", "formatHint": "#,##0.00", "isRequired": true, "sampleValue": 500 },
+            { "name": "lineTotal", "displayLabel": "Line total", "group": "Lines", "dataType": "money", "formatHint": "#,##0.00", "isRequired": true, "sampleValue": 1000 }
+          ]
+        },
+        { "name": "total", "displayLabel": "Total", "group": "Totals", "dataType": "money", "formatHint": "#,##0.00", "isRequired": true, "sampleValue": 1000 }
+      ]
+    },
+    {
+      "documentType": "example-invoice-footer",
+      "schemaVersion": 1,
+      "root": [
+        { "name": "invoiceNumber", "displayLabel": "Invoice number", "group": "Header", "dataType": "string", "isRequired": true, "sampleValue": "INV-0001" },
+        { "name": "customerName", "displayLabel": "Customer", "group": "Header", "dataType": "string", "isRequired": true, "sampleValue": "EXAMPLE CUSTOMER" }
+      ]
+    }
+  ]
+}

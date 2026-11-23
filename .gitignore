@@ -1,0 +1,8 @@
+node_modules
+.pdfer-data
+tmp
+*.log
+.env
+.env.*
+.vscode
+*.pdf

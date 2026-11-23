@@ -1,0 +1,585 @@
+openapi: 3.1.0
+info:
+  title: PDfEr — templated document engine
+  version: "1.1"
+  description: >
+    Template + JSON in, PDF out. All routes are available unprefixed and under /v1.
+    Error codes are stable; messages are not.
+servers:
+  - url: http://localhost:8080
+    description: Local container
+security:
+  - bearerAuth: []
+  - {}
+paths:
+  /healthz:
+    get:
+      security: []
+      operationId: health
+      responses:
+        "200": { description: Process is alive }
+  /readyz:
+    get:
+      security: []
+      operationId: ready
+      responses:
+        "200": { description: Renderer and storage are ready }
+        "503":
+          description: Renderer unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /version:
+    get:
+      security: []
+      operationId: version
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  engine: { type: string }
+                  api: { type: string }
+                  node: { type: string }
+                  renderer:
+                    type: object
+                    properties:
+                      mode: { type: string, enum: [embedded, external] }
+                      version: { type: [string, "null"] }
+  /metrics:
+    get:
+      operationId: metrics
+      responses:
+        "200":
+          content:
+            text/plain:
+              schema: { type: string }
+  /document-types:
+    get:
+      operationId: listDocumentTypes
+      parameters:
+        - { name: tenant, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DocumentTypeDescriptor" }
+  /document-types/{key}/placeholders:
+    get:
+      operationId: getPlaceholders
+      parameters:
+        - { name: key, in: path, required: true, schema: { type: string } }
+        - { name: version, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlaceholderSchema" }
+  /document-types/{key}/sample-data:
+    get:
+      operationId: getSampleData
+      parameters:
+        - { name: key, in: path, required: true, schema: { type: string } }
+        - { name: version, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+  /templates:
+    get:
+      operationId: listTemplates
+      parameters:
+        - { name: tenant, in: query, required: true, schema: { type: string } }
+        - { name: documentType, in: query, required: true, schema: { type: string } }
+        - { name: state, in: query, schema: { type: string, enum: [draft, published, retired] } }
+        - { name: limit, in: query, schema: { type: integer, default: 100, maximum: 500 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/TemplateSummary" }
+                  nextCursor: { type: [string, "null"] }
+    post:
+      operationId: saveTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenant, documentType, content]
+              additionalProperties: false
+              properties:
+                tenant: { type: string }
+                documentType: { type: string }
+                sourceTemplateId: { type: string }
+                syntaxId: { type: string, enum: [liquid], default: liquid }
+                content: { type: string, maxLength: 2097152 }
+                displayLabel: { type: string }
+                baseVersion: { type: integer }
+                createdBy: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  templateId: { type: string }
+                  version: { type: integer }
+                  checksum: { type: string }
+                  schemaVersion: { type: integer }
+        "409":
+          description: VERSION_CONFLICT
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /templates/{templateId}:
+    get:
+      operationId: getTemplate
+      parameters:
+        - { name: templateId, in: path, required: true, schema: { type: string } }
+        - { name: tenant, in: query, required: true, schema: { type: string } }
+        - { name: version, in: query, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Template" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /templates/{templateId}/versions/{version}/publish:
+    post:
+      operationId: publishTemplate
+      parameters: [{ $ref: "#/components/parameters/TemplateRef" }]
+      responses:
+        "204": { description: Published }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /templates/{templateId}/versions/{version}/default:
+    post:
+      operationId: setDefaultTemplate
+      parameters: [{ $ref: "#/components/parameters/TemplateRef" }]
+      responses:
+        "204": { description: Default set }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /templates/{templateId}/versions/{version}/retire:
+    post:
+      operationId: retireTemplate
+      parameters: [{ $ref: "#/components/parameters/TemplateRef" }]
+      responses:
+        "204": { description: Retired }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /validate:
+    post:
+      operationId: validate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CompileRequest" }
+      responses:
+        "200":
+          description: Always 200 for a well-formed request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationReport" }
+        "422": { $ref: "#/components/responses/Malformed" }
+  /compile:
+    post:
+      operationId: compile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CompileRequest" }
+      responses:
+        "200":
+          content:
+            text/html:
+              schema: { type: string }
+  /preview:
+    post:
+      operationId: preview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RenderRequest" }
+      responses:
+        "200":
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+            text/html:
+              schema: { type: string }
+  /render:
+    post:
+      operationId: render
+      parameters:
+        - { name: async, in: query, schema: { type: boolean } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RenderRequest" }
+      responses:
+        "200":
+          description: PDF (or HTML with format=html)
+          headers:
+            X-Template-Id: { schema: { type: string } }
+            X-Template-Version: { schema: { type: integer } }
+            X-Schema-Version: { schema: { type: integer } }
+            X-Renderer-Image: { schema: { type: string } }
+            X-Input-Hash: { schema: { type: string } }
+            X-Page-Count: { schema: { type: integer } }
+            X-Artifact-Handle: { schema: { type: string } }
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "202":
+          description: Accepted for async rendering
+          headers:
+            Location: { schema: { type: string } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+        "504": { $ref: "#/components/responses/Timeout" }
+  /jobs/{id}:
+    get:
+      operationId: getJob
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: tenant, in: query, schema: { type: string } }
+      responses:
+        "202": { description: Running }
+        "303":
+          description: Done; Location points at the artifact
+          headers:
+            Location: { schema: { type: string } }
+  /artifacts/{handle}:
+    get:
+      operationId: getArtifact
+      parameters:
+        - { name: handle, in: path, required: true, schema: { type: string } }
+        - { name: tenant, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /assets/{path}:
+    put:
+      operationId: registerAsset
+      parameters:
+        - { name: path, in: path, required: true, schema: { type: string } }
+        - { name: tenant, in: query, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Asset" }
+  /assets:
+    get:
+      operationId: listAssets
+      parameters:
+        - { name: tenant, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Asset" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    TemplateRef:
+      name: templateId
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    Conflict:
+      description: State conflict
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    BadRequest:
+      description: Semantic rejection
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    Malformed:
+      description: Unparseable body
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    Unavailable:
+      description: Renderer unavailable
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    Timeout:
+      description: Render timeout
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, retriable]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            retriable: { type: boolean }
+            location:
+              type: object
+              properties:
+                line: { type: integer }
+                column: { type: integer }
+            details:
+              type: object
+              additionalProperties: true
+    DocumentTypeDescriptor:
+      type: object
+      properties:
+        documentType: { type: string }
+        displayLabel: { type: string }
+        placeholderSchemaVersion: { type: integer }
+        supportedSyntaxes:
+          type: array
+          items: { type: string }
+        supportsPreview: { type: boolean }
+        templateCount: { type: integer }
+        defaultTemplateId: { type: [string, "null"] }
+    PlaceholderSchema:
+      type: object
+      properties:
+        documentType: { type: string }
+        schemaVersion: { type: integer }
+        root:
+          type: array
+          items: { $ref: "#/components/schemas/PlaceholderDescriptor" }
+    PlaceholderDescriptor:
+      type: object
+      properties:
+        path: { type: string }
+        token: { type: string }
+        displayLabel: { type: string }
+        group: { type: [string, "null"] }
+        dataType:
+          type: string
+          enum: [string, html, number, money, date, datetime, boolean, object, collection]
+        isCollection: { type: boolean }
+        isRequired: { type: boolean }
+        formatHint: { type: [string, "null"] }
+        sampleValue: {}
+        loopVariable: { type: string }
+        reserved: { type: boolean }
+        children:
+          type: array
+          items: { $ref: "#/components/schemas/PlaceholderDescriptor" }
+    TemplateSummary:
+      type: object
+      properties:
+        templateId: { type: string }
+        documentType: { type: string }
+        version: { type: integer }
+        displayLabel: { type: string }
+        state: { type: string, enum: [draft, published, retired] }
+        isDefault: { type: boolean }
+        schemaVersion: { type: integer }
+        checksum: { type: string }
+        createdAt: { type: string, format: date-time }
+    Template:
+      allOf:
+        - $ref: "#/components/schemas/TemplateSummary"
+        - type: object
+          properties:
+            content: { type: string }
+    RenderRequest:
+      type: object
+      required: [tenant, documentType, mode, generatedAt]
+      additionalProperties: false
+      properties:
+        tenant: { type: string, pattern: "^[a-z0-9][a-z0-9_-]{0,63}$" }
+        documentType: { type: string, pattern: "^[a-z][a-z0-9-]{1,63}$" }
+        mode: { type: string, enum: [preview, production] }
+        template:
+          oneOf:
+            - type: string
+              const: default
+            - type: object
+              required: [templateId, version]
+              properties:
+                templateId: { type: string }
+                version: { type: integer }
+        inlineTemplate:
+          type: object
+          required: [syntaxId, content]
+          properties:
+            syntaxId: { type: string, enum: [liquid] }
+            content: { type: string }
+            displayLabel: { type: string }
+        data:
+          type: object
+          additionalProperties: true
+        generatedAt: { type: string, format: date-time }
+        schemaVersion: { type: integer }
+        useSampleData: { type: boolean }
+        format: { type: string, enum: [pdf, html], default: pdf }
+        assets:
+          type: array
+          items:
+            type: object
+            required: [path]
+            properties:
+              path: { type: string }
+              mimeType: { type: string }
+              assetRef: { type: string }
+        output:
+          type: object
+          properties:
+            fileName: { type: string }
+        options:
+          type: object
+          additionalProperties: false
+          properties:
+            preferCssPageSize: { type: boolean, default: true }
+            paperWidth: { type: string }
+            paperHeight: { type: string }
+            marginTop: { type: number }
+            marginBottom: { type: number }
+            marginLeft: { type: number }
+            marginRight: { type: number }
+            headerMargin: { type: number }
+            footerMargin: { type: number }
+            landscape: { type: boolean }
+            printBackground: { type: boolean }
+            scale: { type: number, minimum: 0.1, maximum: 2 }
+            nativePageRanges: { type: [string, "null"] }
+            waitDelay: { type: [string, "null"] }
+            waitForExpression: { type: [string, "null"] }
+            failOnHttpStatusCodes:
+              type: array
+              items: { type: integer }
+            headerTemplateRef:
+              oneOf:
+                - type: string
+                  const: default
+                - type: object
+            footerTemplateRef:
+              oneOf:
+                - type: string
+                  const: default
+                - type: object
+            metadata:
+              type: object
+              additionalProperties: false
+              properties:
+                title: { type: string }
+                author: { type: string }
+                subject: { type: string }
+                keywords: { type: string }
+    CompileRequest:
+      type: object
+      required: [tenant, documentType]
+      additionalProperties: false
+      properties:
+        tenant: { type: string }
+        documentType: { type: string }
+        inlineTemplate:
+          type: object
+          properties:
+            syntaxId: { type: string, enum: [liquid] }
+            content: { type: string }
+            displayLabel: { type: string }
+        template: {}
+        data:
+          type: [object, "null"]
+        generatedAt: { type: string }
+        schemaVersion: { type: integer }
+        assets:
+          type: array
+          items:
+            type: object
+        useSampleData: { type: boolean }
+        format: { type: string, enum: [pdf, html] }
+    ValidationReport:
+      type: object
+      properties:
+        isRenderable: { type: boolean }
+        schemaVersion: { type: integer }
+        syntaxErrors:
+          type: array
+          items: { $ref: "#/components/schemas/Diagnostic" }
+        unknownTokens:
+          type: array
+          items: { $ref: "#/components/schemas/Diagnostic" }
+        unusedPlaceholders:
+          type: array
+          items:
+            type: object
+            properties:
+              token: { type: string }
+        missingAssets:
+          type: array
+          items:
+            type: object
+            properties:
+              path: { type: string }
+        schemaMismatches:
+          type: array
+          items: { $ref: "#/components/schemas/Diagnostic" }
+        warnings:
+          type: array
+          items: { $ref: "#/components/schemas/Diagnostic" }
+    Diagnostic:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        token: { type: [string, "null"] }
+        location:
+          type: object
+          properties:
+            line: { type: integer }
+            column: { type: integer }
+        suggestion: { type: string }
+        expectedType: { type: string }
+        receivedType: { type: string }
+    Asset:
+      type: object
+      properties:
+        assetRef: { type: string }
+        path: { type: string }
+        mimeType: { type: string }
+        sha256: { type: string }
+        size: { type: integer }

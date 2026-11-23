@@ -1,0 +1,30 @@
+PDfEr
+=====
+
+This product bundles third-party components. Their licences are reproduced or
+referenced below.
+
+Gotenberg
+---------
+The container is built on the official Gotenberg image (Apache-2.0).
+Gotenberg embeds Chromium (BSD-3-Clause and others) and LibreOffice (MPL-2.0).
+Licence texts ship inside the base image under /usr/share/doc and
+/usr/share/licenses.
+
+DejaVu fonts
+------------
+The demo tenant's font bundle contains DejaVu Sans and DejaVu Sans Bold
+(Bitstream Vera Fonts Copyright © 2003 Bitstream, Inc.; DejaVu changes are in
+the public domain). The fonts are redistributable under the Bitstream Vera
+licence, which permits use, modification and redistribution provided the
+copyright notice is retained. Full text:
+https://dejavu-fonts.github.io/License.html
+
+Node.js
+-------
+Node.js is licensed under the MIT licence. The runtime is copied into the
+image from the official node:22-bookworm-slim image.
+
+npm dependencies
+----------------
+fastify (MIT), liquidjs (MIT), pdf-lib (MIT). See node_modules/*/LICENSE.

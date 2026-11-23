@@ -1,0 +1,36 @@
+# A single-container demo of the engine.
+#
+#   docker compose up -d
+#   curl -s http://localhost:8080/document-types?tenant=demo
+#
+# The engine seeds a demo tenant on first boot. For your own document types,
+# mount a schema manifest and set PDFER_SCHEMAS_FILE (see docs/05-schemas.md).
+
+services:
+  pdfer:
+    image: nyingi/pdfer:1.1.0
+    container_name: pdfer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - pdfer-data:/data
+    environment:
+      PDFER_LOG_LEVEL: info
+      # PDFER_AUTH_MODE: apikey
+      # PDFER_API_KEY: change-me
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8080/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+volumes:
+  pdfer-data:

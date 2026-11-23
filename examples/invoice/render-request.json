@@ -1,0 +1,25 @@
+{
+  "tenant": "demo",
+  "documentType": "example-invoice",
+  "mode": "production",
+  "template": "default",
+  "generatedAt": "2026-01-31T09:00:00Z",
+  "options": {
+    "footerTemplateRef": "default",
+    "metadata": { "title": "Invoice INV-0001" }
+  },
+  "data": {
+    "invoiceNumber": "INV-0001",
+    "issuedOn": "2026-01-31",
+    "dueOn": "2026-02-28",
+    "currency": "KES",
+    "customerName": "EXAMPLE CUSTOMER",
+    "customerAddress": "1 EXAMPLE STREET\nEXAMPLE CITY",
+    "notes": "Payment due within 30 days.",
+    "items": [
+      { "description": "Consulting services", "quantity": 2, "unitPrice": 500, "lineTotal": 1000 },
+      { "description": "Travel reimbursement", "quantity": 1, "unitPrice": 250.5, "lineTotal": 250.5 }
+    ],
+    "total": 1250.5
+  }
+}

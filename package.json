@@ -1,0 +1,26 @@
+{
+  "name": "@pdfer/core",
+  "version": "1.1.0",
+  "description": "PDfEr — deterministic templated document engine (Liquid → HTML → PDF)",
+  "license": "MIT",
+  "main": "src/index.js",
+  "bin": {
+    "pdfer": "bin/pdfer.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/",
+    "test:watch": "node --test --watch test/"
+  },
+  "dependencies": {
+    "fastify": "^4.28.1",
+    "liquidjs": "^10.16.4",
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "pdfjs-dist": "^4.7.76"
+  }
+}
