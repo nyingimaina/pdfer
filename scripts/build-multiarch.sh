@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-# Builds and publishes a multi-arch image, one platform at a time.
+# Publishes a multi-arch image, one platform at a time.
 #
 #   ./scripts/build-multiarch.sh [version]
 #
-# One platform per build keeps the peak memory low (each base is ~1.9 GB);
-# the two digests are then combined into one manifest list. Requires binfmt
-# for arm64 on an amd64 host:
+# Building both platforms in a single buildx invocation pulls two 1.9 GB bases
+# at once and can exhaust a small host; building them separately and combining
+# the digests keeps the peak low. arm64 on an amd64 host needs binfmt:
 #
 #   docker run --privileged --rm tonistiigi/binfmt --install arm64
+#
+# The single-arch tags (:x.y.z-amd64 / :x.y.z-arm64) are intentionally left in
+# place so a caller can pin an architecture.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -21,26 +24,27 @@ fi
 docker buildx use "$BUILDER" >/dev/null
 
 build_platform() {
-  local platform="$1" metadata="$2"
+  local platform="$1" arch="$2"
   echo "==> $platform" >&2
   docker buildx build \
     --platform "$platform" \
     --build-arg VERSION="$VERSION" \
-    --output "type=image,name=$IMAGE,push-by-digest=true,name-canonical=true,push=true" \
-    --metadata-file "$metadata" \
+    -t "$IMAGE:$VERSION-$arch" \
+    --load \
     . >&2
-  python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['containerimage.digest'])" "$metadata"
+  docker push "$IMAGE:$VERSION-$arch" >&2
 }
 
-ARM=$(build_platform linux/arm64 /tmp/pdfer-arm.json)
-AMD=$(build_platform linux/amd64 /tmp/pdfer-amd.json)
+build_platform linux/amd64 amd64
+build_platform linux/arm64 arm64
 
-echo "==> manifest"
-docker buildx imagetools create \
-  -t "$IMAGE:$VERSION" \
-  -t "$IMAGE:latest" \
-  "$IMAGE@$ARM" \
-  "$IMAGE@$AMD"
+echo "==> manifest" >&2
+docker manifest create "$IMAGE:$VERSION" --amend \
+  "$IMAGE:$VERSION-amd64" "$IMAGE:$VERSION-arm64" >&2
+docker manifest push "$IMAGE:$VERSION" >&2
+docker manifest create "$IMAGE:latest" --amend \
+  "$IMAGE:$VERSION-amd64" "$IMAGE:$VERSION-arm64" >&2
+docker manifest push "$IMAGE:latest" >&2
 
 docker buildx imagetools inspect "$IMAGE:$VERSION"
 echo "Published $IMAGE:$VERSION and $IMAGE:latest"
