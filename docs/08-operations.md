@@ -57,10 +57,12 @@ Measured on a 2 vCPU host:
 
 | | |
 |---|---|
-| Idle RSS | ~260 MB |
+| Idle RSS, Chromium asleep (after 3 min without a render) | **~50–60 MB** |
+| Warm RSS (within 3 min of a render, Chromium still up) | ~260 MB |
 | One 3-page invoice | ~430 MB |
 | 10 000-row table | ~426 MB, ~9 s, 201 pages |
 | Cold start to `/readyz` | ~12 s (including the self-test) |
+| First render after Chromium sleeps | +1–2 s spent starting Chromium |
 | Image | ~1.9 GB |
 
 Start at 1 vCPU / 1 GB, cap concurrency at 2, and scale horizontally only if you

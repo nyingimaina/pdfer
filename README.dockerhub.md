@@ -92,7 +92,7 @@ repository (`schema/openapi.yaml`).
 
 ## Sizing
 
-~1.9 GB image. Roughly 260 MB idle, ~430 MB while rendering a page;
+~1.9 GB image. Roughly 50-60 MB idle (Chromium shuts down after three minutes without a render), ~260 MB warm and ~430 MB while rendering;
 10 000 table rows render in about 9 seconds.
 
 ## Licence

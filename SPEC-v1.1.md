@@ -312,7 +312,7 @@ The "least resource hungry" target. These are **requirements**, not aspirations.
 | ID | Metric | Target | Measured (v1.1 reference build) |
 |---|---|---|---|
 | **RP1** | Image size | ≤ 1.9 GB | 1.86 GB |
-| **RP2** | Container RSS, idle (after warm-up) | ≤ 420 MB total | 260–370 MB |
+| **RP2** | Container RSS, idle (Chromium asleep after 180 s without a render) | ≤ 420 MB total | ~55 MB (warm within 3 min: ~260 MB) |
 | **RP3** | Container RSS, one 3-page invoice in flight | ≤ 700 MB | ~430 MB |
 | **RP4** | Container RSS, 10 000-row render | ≤ 1.6 GB; completes ≤ 30 s | 426 MB; 9.0 s (201 pages) |
 | **RP5** | Engine process RSS, idle | ≤ 90 MB | ~50 MB |

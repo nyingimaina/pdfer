@@ -60,7 +60,7 @@ If the renderer dies it is restarted with bounded backoff; renders fail with
 2 MiB of template, 32 MiB of data, 64 MiB of assets, 100 MiB of output.
 Nothing is written outside `/data`.
 
-Measured on the reference build (2 vCPU): 1.86 GB image, ~260 MB idle RSS,
+Measured on the reference build (2 vCPU): 1.86 GB image, ~50-60 MB idle RSS (Chromium sleeps after 3 min),
 9.0 s for a 10 000-row / 201-page render at 426 MB peak.
 
 ---
