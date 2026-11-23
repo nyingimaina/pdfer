@@ -3,22 +3,42 @@
 const { spawn } = require('node:child_process');
 
 /**
- * Supervises the embedded Gotenberg process (SPEC D-9, N26, N27).
+ * Decides whether an idle renderer should be stopped.
  *
- * The renderer is bound to loopback, has JavaScript disabled, has both private
- * and public IP deny rules, and has the LibreOffice/PDF-engine routes disabled.
- * If it exits unexpectedly it is restarted with bounded exponential backoff.
+ * Exported so the rule can be tested without spawning Chromium.
+ */
+function shouldStopIdle({ enabled, now, lastBusyAt, idleSeconds, active, queued }) {
+  if (!enabled) return false;
+  if (!idleSeconds || idleSeconds <= 0) return false;
+  if (active > 0 || queued > 0) return false;
+  return now - lastBusyAt >= idleSeconds * 1000;
+}
+
+/**
+ * Supervises the embedded Gotenberg process.
+ *
+ * - starts it lazily if `PDFER_RENDERER_IDLE_STOP_SECONDS` stopped it;
+ * - restarts it with bounded backoff after a crash;
+ * - optionally stops it after a period with no renders, so idle memory drops to
+ *   the engine process only (~20-50 MB). The next render starts it again and
+ *   pays a ~0.5-1.5 s cold start.
  */
 class RendererProcess {
-  constructor({ config, logger }) {
+  constructor({ config, logger, renderer }) {
     this.config = config.renderer;
     this.logger = logger;
+    this.renderer = renderer;
     this.child = null;
     this.stopping = false;
-    this.restartDelayMs = 1000;
+    this.idleStopping = false;
+    this.starting = null;
     this.restartTimer = null;
+    this.idleTimer = null;
     this.ready = false;
+    this.idle = false;
     this.crashes = 0;
+    this.restartDelayMs = 1000;
+    this.lastBusyAt = Date.now();
   }
 
   args() {
@@ -51,20 +71,117 @@ class RendererProcess {
       return;
     }
 
+    await this.#spawnAndWait();
+    this.logger.info({ port: this.config.port }, 'embedded renderer is ready');
+    this.#startIdleWatchdog();
+  }
+
+  /** Starts the renderer if it is not running. Safe to call concurrently. */
+  async ensureStarted() {
+    if (this.config.external) return;
+    if (this.ready && this.child) return;
+    if (this.starting) return this.starting;
+
+    this.starting = (async () => {
+      if (this.restartTimer) {
+        clearTimeout(this.restartTimer);
+        this.restartTimer = null;
+      }
+      this.idleStopping = false;
+      this.idle = false;
+      this.logger.info('starting the renderer on demand');
+      await this.#spawnAndWait();
+      this.lastBusyAt = Date.now();
+      this.logger.info('renderer is ready');
+    })().finally(() => {
+      this.starting = null;
+    });
+
+    return this.starting;
+  }
+
+  /** Called by the renderer around every conversion. */
+  noteActivity() {
+    this.lastBusyAt = Date.now();
+  }
+
+  isReady() {
+    return this.config.external ? true : this.ready;
+  }
+
+  /** True when the renderer was stopped on purpose and can be started again. */
+  isIdle() {
+    return !this.config.external && this.idle && !this.ready;
+  }
+
+  async #spawnAndWait() {
     await this.#spawn();
     const deadline = Date.now() + this.config.startTimeoutMs;
     while (Date.now() < deadline) {
       if (await this.#probe()) {
         this.ready = true;
-        this.logger.info({ port: this.config.port }, 'embedded renderer is ready');
+        this.idle = false;
+        this.restartDelayMs = 1000;
         return;
       }
-      await new Promise((resolve) => setTimeout(resolve, 250));
+      await new Promise((resolve) => setTimeout(resolve, 200));
     }
-    throw new Error(`Embedded renderer did not become healthy within ${this.config.startTimeoutMs} ms`);
+    throw new Error(`Renderer did not become healthy within ${this.config.startTimeoutMs} ms`);
+  }
+
+  #startIdleWatchdog() {
+    if (!this.config.idleStopSeconds || this.idleTimer) return;
+    const pollSeconds = Math.max(5, Math.min(30, Math.floor(this.config.idleStopSeconds / 2)));
+    this.idleTimer = setInterval(() => {
+      this.#stopIfIdle().catch((error) =>
+        this.logger.error({ err: error.message }, 'idle shutdown check failed')
+      );
+    }, pollSeconds * 1000);
+    this.idleTimer.unref?.();
+    this.logger.info(
+      { idleStopSeconds: this.config.idleStopSeconds },
+      'renderer idle shutdown enabled'
+    );
+  }
+
+  async #stopIfIdle() {
+    if (!this.ready || !this.child || this.starting) return;
+    const active = this.renderer ? this.renderer.activeRenders : 0;
+    const queued = this.renderer ? this.renderer.queueDepth : 0;
+    const stop = shouldStopIdle({
+      enabled: Boolean(this.config.idleStopSeconds),
+      now: Date.now(),
+      lastBusyAt: this.lastBusyAt,
+      idleSeconds: this.config.idleStopSeconds,
+      active,
+      queued
+    });
+    if (!stop) return;
+
+    this.idleStopping = true;
+    this.ready = false;
+    this.idle = true;
+    this.logger.info(
+      { idleSeconds: this.config.idleStopSeconds },
+      'stopping the renderer after an idle period'
+    );
+    this.child.kill('SIGTERM');
   }
 
   async #spawn() {
+    // A child that is still shutting down (idle stop, crash) must finish before
+    // a new one is started, or the port stays bound and the spawn silently no-ops.
+    if (this.child) {
+      const existing = this.child;
+      await new Promise((resolve) => {
+        const timer = setTimeout(resolve, 5000);
+        existing.once('exit', () => {
+          clearTimeout(timer);
+          resolve();
+        });
+      });
+    }
+
     this.child = spawn(this.config.bin, this.args(), {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, HOME: '/tmp' }
@@ -81,29 +198,27 @@ class RendererProcess {
       this.logger.error({ err: error.message }, 'renderer failed to start');
     });
     this.child.on('exit', (code, signal) => {
+      this.child = null;
       this.ready = false;
+
       if (this.stopping) return;
+      if (this.idleStopping) {
+        this.idleStopping = false;
+        this.logger.info({ code, signal }, 'renderer stopped for idleness');
+        return;
+      }
+
       this.crashes += 1;
       this.logger.error({ code, signal, crashes: this.crashes }, 'renderer exited unexpectedly');
       this.restartTimer = setTimeout(async () => {
         try {
-          await this.#spawn();
-          const deadline = Date.now() + this.config.startTimeoutMs;
-          while (Date.now() < deadline) {
-            if (await this.#probe()) {
-              this.ready = true;
-              this.restartDelayMs = 1000;
-              this.logger.info('renderer restarted');
-              return;
-            }
-            await new Promise((resolve) => setTimeout(resolve, 250));
-          }
-          this.logger.error('renderer restarted but never became healthy');
+          await this.#spawnAndWait();
+          this.logger.info('renderer restarted');
         } catch (error) {
           this.logger.error({ err: error.message }, 'renderer restart failed');
+          this.restartDelayMs = Math.min((this.restartDelayMs || 1000) * 2, 30000);
         }
-        this.restartDelayMs = Math.min(this.restartDelayMs * 2, 30000);
-      }, this.restartDelayMs);
+      }, this.restartDelayMs || 1000);
       this.restartTimer.unref?.();
     });
   }
@@ -119,13 +234,10 @@ class RendererProcess {
     }
   }
 
-  isReady() {
-    return this.config.external ? true : this.ready;
-  }
-
   async stop() {
     this.stopping = true;
     if (this.restartTimer) clearTimeout(this.restartTimer);
+    if (this.idleTimer) clearInterval(this.idleTimer);
     if (!this.child) return;
     const child = this.child;
     child.kill('SIGTERM');
@@ -143,4 +255,4 @@ class RendererProcess {
   }
 }
 
-module.exports = { RendererProcess };
+module.exports = { RendererProcess, shouldStopIdle };

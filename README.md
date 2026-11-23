@@ -82,6 +82,7 @@ termination, no configuration file. Every knob below has a default.
 | `PDFER_AUTH_MODE` | `off` | `off` or `apikey` |
 | `PDFER_API_KEY` | — | required when `apikey` |
 | `PDFER_MAX_CONCURRENCY` | `2` | parallel Chromium conversions |
+| `PDFER_RENDERER_IDLE_STOP_SECONDS` | `0` | stop the renderer after N idle seconds; restart on the next render |
 | `PDFER_MAX_QUEUE` | `32` | waiting renders before `RENDER_QUEUE_FULL` |
 | `PDFER_RENDER_TIMEOUT_MS` | `60000` | |
 | `PDFER_RENDER_RETRIES` | `2` | infrastructure errors only |

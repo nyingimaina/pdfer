@@ -34,6 +34,7 @@ function loadConfig(env = process.env) {
       port: int(env.PDFER_RENDERER_PORT, 3001),
       bin: env.PDFER_RENDERER_BIN || 'gotenberg',
       startTimeoutMs: int(env.PDFER_RENDERER_START_TIMEOUT_MS, 40000),
+      idleStopSeconds: int(env.PDFER_RENDERER_IDLE_STOP_SECONDS, 0),
       javascriptEnabled: bool(env.PDFER_ALLOW_JAVASCRIPT, false)
     },
 

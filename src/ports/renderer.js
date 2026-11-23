@@ -82,6 +82,14 @@ class GotenbergRenderer {
     this.logger = logger;
     this.semaphore = new Semaphore(maxConcurrency, maxQueue);
     this.healthCache = { at: 0, value: null };
+    this.ensureStarted = null;
+    this.onActivity = null;
+  }
+
+  /** Hooks supplied by the process supervisor (idle stop, on-demand start). */
+  setHooks({ ensureStarted, onActivity } = {}) {
+    if (ensureStarted) this.ensureStarted = ensureStarted;
+    if (onActivity) this.onActivity = onActivity;
   }
 
   get queueDepth() {
@@ -93,6 +101,8 @@ class GotenbergRenderer {
   }
 
   async render({ html, assets, headerHtml, footerHtml, options, signal }) {
+    if (this.ensureStarted) await this.ensureStarted();
+    if (this.onActivity) this.onActivity();
     const opts = { ...DEFAULTS, ...(options || {}) };
     for (const key of Object.keys(opts)) {
       if (opts[key] === undefined) opts[key] = DEFAULTS[key];

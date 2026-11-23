@@ -96,7 +96,11 @@ async function main() {
 
   let rendererProcess = null;
   if (!config.renderer.external) {
-    rendererProcess = new RendererProcess({ config, logger });
+    rendererProcess = new RendererProcess({ config, logger, renderer: runtime.renderer });
+    runtime.renderer.setHooks({
+      ensureStarted: () => rendererProcess.ensureStarted(),
+      onActivity: () => rendererProcess.noteActivity()
+    });
     await rendererProcess.start();
   } else {
     logger.info({ renderer: config.renderer.baseUrl }, 'using external renderer');

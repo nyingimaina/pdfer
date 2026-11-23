@@ -27,6 +27,7 @@ exits, it is restarted with bounded backoff; renders fail with
 | `PDFER_ARTIFACT_RETENTION_DAYS` | `0` | delete stored PDFs older than this (0 = keep) |
 | `PDFER_RATE_LIMIT_PER_MINUTE` | `0` | per-IP fixed window (0 = off) |
 | `PDFER_MAX_CONCURRENCY` | `2` | parallel Chromium conversions |
+| `PDFER_RENDERER_IDLE_STOP_SECONDS` | `0` | stop the renderer after N idle seconds; the next render starts it (~0.5-1.5 s) |
 | `PDFER_MAX_QUEUE` | `32` | waiting renders before `RENDER_QUEUE_FULL` |
 | `PDFER_RENDER_TIMEOUT_MS` | `60000` | |
 | `PDFER_RENDER_RETRIES` | `2` | infrastructure errors only |
@@ -63,6 +64,7 @@ Measured on a 2 vCPU host:
 | 10 000-row table | ~426 MB, ~9 s, 201 pages |
 | Cold start to `/readyz` | ~12 s (including the self-test) |
 | First render after Chromium sleeps | +1–2 s spent starting Chromium |
+| Idle with `PDFER_RENDERER_IDLE_STOP_SECONDS` | ~30 MB anonymous; `readyz` reports `idle` |
 | Image | ~1.9 GB |
 
 Start at 1 vCPU / 1 GB, cap concurrency at 2, and scale horizontally only if you

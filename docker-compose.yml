@@ -19,6 +19,8 @@ services:
       PDFER_LOG_LEVEL: info
       # PDFER_AUTH_MODE: apikey
       # PDFER_API_KEY: change-me
+      # Stop the renderer after five idle minutes; the next render restarts it.
+      # PDFER_RENDERER_IDLE_STOP_SECONDS: "300"
     healthcheck:
       test:
         [

@@ -396,6 +396,7 @@ All optional. Nothing here must be set for a working container.
 | `PDFER_AUTH_MODE` | `off` | `off` \| `apikey` |
 | `PDFER_API_KEY` | — | Required when `apikey` |
 | `PDFER_MAX_CONCURRENCY` | `2` | Renderer parallelism |
+| `PDFER_RENDERER_IDLE_STOP_SECONDS` | `0` | Stop the renderer after N idle seconds; restart on demand |
 | `PDFER_MAX_QUEUE` | `32` | Waiting renders before `RENDER_QUEUE_FULL` |
 | `PDFER_RENDER_TIMEOUT_MS` | `60000` | |
 | `PDFER_RENDER_RETRIES` | `2` | Infrastructure errors only |

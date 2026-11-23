@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.1 — 2026-11
+
+**Idle memory**
+- `PDFER_RENDERER_IDLE_STOP_SECONDS` (default `0`, off): after that many seconds
+  without a render, the engine stops its embedded Gotenberg process. The next
+  render starts it again and waits for it, adding ~0.5–1.5 s to that request.
+- Chromium already sleeps after 180 s (`--chromium-idle-shutdown-timeout`), so
+  idle memory without this flag is ~55 MB; with it, ~30 MB anonymous.
+- `/readyz` reports `{"status":"ready","renderer":{"status":"idle"}}` while the
+  renderer is stopped on purpose, so orchestrators do not mark the container
+  unhealthy.
+- Measured and rejected: `--jitless` (breaks `fetch`/undici, which needs
+  WebAssembly) and `--max-semi-space-size=1|2` (raises anonymous memory, because
+  objects are promoted to old space sooner).
+
 ## 1.1.0 — 2026-11
 
 First public release.

@@ -59,6 +59,7 @@ curl -s -X POST http://localhost:8080/render \
 | `PDFER_SCHEMAS_FILE` | — | Read-only schema manifest merged at startup |
 | `PDFER_SEED_DEMO` | `true` | Seeds a demo invoice on an empty volume |
 | `PDFER_MAX_CONCURRENCY` | `2` | Parallel Chromium conversions |
+| `PDFER_RENDERER_IDLE_STOP_SECONDS` | `0` | Stop the renderer after N idle seconds; the next render restarts it |
 | `PDFER_LOG_LEVEL` | `info` | |
 
 Health and readiness: `GET /healthz` (process) and `GET /readyz` (renderer).

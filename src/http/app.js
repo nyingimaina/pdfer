@@ -227,6 +227,10 @@ function buildApp({ engine, config, rendererProcess, logger, registry }) {
   app.get('/healthz', async () => ({ status: 'ok' }));
 
   app.get('/readyz', async (_request, reply) => {
+    // A renderer stopped on purpose is still "ready": the next render starts it.
+    if (rendererProcess && typeof rendererProcess.isIdle === 'function' && rendererProcess.isIdle()) {
+      return { status: 'ready', renderer: { status: 'idle', version: null } };
+    }
     const health = await engine.renderer.health();
     const ready = health.ok && (!rendererProcess || rendererProcess.isReady());
     if (!ready) {
