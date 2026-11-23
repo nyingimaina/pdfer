@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Image | `nyingi/pdfer:1.1.0` (`linux/amd64`, `linux/arm64`) |
+| Image | `nyingi/pdfer:1.1.0` (`linux/amd64`; the release workflow also builds `arm64`) |
 | Port | `8080` — publish it only where trusted clients live |
 | Volume | `/data` — templates, versions, assets, generated artifacts |
 | User | uid `1001` |
