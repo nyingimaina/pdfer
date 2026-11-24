@@ -141,6 +141,17 @@ width: 60mm;`, `object-fit`, `opacity`, `z-index`, `transform` all work.
 A referenced file that is not in the tenant's asset library is reported by
 validation as `ASSET_MISSING` and refuses to publish.
 
+The reference forms are `src`, `href`, `url()` (quoted or bare) and `@import`.
+`srcset` and `poster` are not read, so their targets are neither validated nor
+bundled — use `src` instead.
+
+The engine uploads every asset to the renderer under a flat, content-derived
+name and rewrites these references in the copy it renders. That is invisible in
+the output: the compiled HTML, `/compile` and the input hash keep the portable
+`./assets/...` form. If a reference the validator could not see still points at
+a missing file, the render fails with `RENDER_RESOURCE_FAILED` rather than
+producing a PDF without it.
+
 ## What gets rejected
 
 Validation rejects, with a location:

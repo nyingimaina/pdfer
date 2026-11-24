@@ -2,6 +2,7 @@
 
 const { PDFDocument } = require('pdf-lib');
 const { EngineError } = require('../errors');
+const { prepareRenderAssets } = require('../renderAssets');
 
 /**
  * Gotenberg (Chromium) adapter — SPEC §9, ADR-2, ADR-10.
@@ -144,23 +145,32 @@ class GotenbergRenderer {
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
     try {
+      // Gotenberg keeps only the base name of every uploaded file, so assets go
+      // out under flat names and the HTML is pointed at those names. The
+      // compiled HTML and the input hash keep the portable `./assets/...` form.
+      const prepared = prepareRenderAssets({ html, assets, headerHtml, footerHtml });
       const form = new FormData();
-      form.append('files', new Blob([Buffer.from(html, 'utf8')], { type: 'text/html' }), 'index.html');
-      for (const asset of assets || []) {
+      form.append('files', new Blob([Buffer.from(prepared.html, 'utf8')], { type: 'text/html' }), 'index.html');
+      for (const file of prepared.files) {
         form.append(
           'files',
-          new Blob([asset.bytes], { type: asset.mimeType || 'application/octet-stream' }),
-          asset.path
+          new Blob([file.bytes], { type: file.mimeType || 'application/octet-stream' }),
+          file.name
         );
       }
-      if (headerHtml) form.append('files', new Blob([headerHtml], { type: 'text/html' }), 'header.html');
-      if (footerHtml) form.append('files', new Blob([footerHtml], { type: 'text/html' }), 'footer.html');
+      if (prepared.headerHtml) form.append('files', new Blob([prepared.headerHtml]), 'header.html');
+      if (prepared.footerHtml) form.append('files', new Blob([prepared.footerHtml]), 'footer.html');
 
       form.append('preferCssPageSize', String(opts.preferCssPageSize));
       form.append('printBackground', String(opts.printBackground));
       form.append('landscape', String(opts.landscape));
       form.append('scale', String(opts.scale));
       form.append('failOnHttpStatusCodes', JSON.stringify(opts.failOnHttpStatusCodes));
+      // A sub-resource that fails to load must fail the render (SPEC: never turn
+      // a failure into an empty PDF). `failOnHttpStatusCodes` covers the main
+      // document only; these two cover images, fonts and CSS.
+      form.append('failOnResourceLoadingFailed', 'true');
+      form.append('failOnResourceHttpStatusCodes', JSON.stringify([404, 499, 500, 502, 503, 504]));
       form.append('metadata', JSON.stringify(opts.metadata || {}));
 
       if (!opts.preferCssPageSize) {
@@ -199,6 +209,15 @@ class GotenbergRenderer {
         const detail = await response.text().catch(() => '');
         if (response.status === 503) {
           throw new EngineError('RENDERER_UNAVAILABLE', 'Renderer is not ready', { details: { status: 503 } });
+        }
+        // Gotenberg answers 409 when Chromium reports a failed sub-resource.
+        // That is a property of the template, so it must not be retried.
+        if (response.status === 409 && /resources/i.test(detail)) {
+          throw new EngineError(
+            'RENDER_RESOURCE_FAILED',
+            'A resource referenced by the template could not be loaded',
+            { details: { status: 409, detail: detail.slice(0, 500) } }
+          );
         }
         throw new EngineError('RENDER_FAILED', `Renderer returned HTTP ${response.status}`, {
           details: { status: response.status, detail: detail.slice(0, 500) }

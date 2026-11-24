@@ -293,6 +293,7 @@ Existing codes from §13 remain. New/changed:
 | `DATA_TOO_LARGE` | client | 413 | no | `data` over 32 MiB |
 | `OUTPUT_TOO_LARGE` | client | 500 | no | PDF over 100 MiB |
 | `RENDER_QUEUE_FULL` | infrastructure | 503 | yes | Concurrency + queue exhausted |
+| `RENDER_RESOURCE_FAILED` | client | 502 | no | A sub-resource (image, font, CSS) could not be loaded |
 | `ARTIFACT_NOT_FOUND` | client | 404 | no | Unknown/inaccessible artifact handle |
 | `ASSET_NOT_FOUND` | client | 404 | no | Unknown asset ref for this tenant |
 | `JOB_NOT_FOUND` | client | 404 | no | Unknown async job |

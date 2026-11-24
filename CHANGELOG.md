@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.1.2 — 2026-11
+
+**Fix: assets referenced as `./assets/<name>` now reach the PDF**
+- The renderer writes every uploaded file under its base name only (Gotenberg
+  strips directory components as a path-traversal guard), so `./assets/logo.png`
+  never resolved. Assets are now uploaded under flat, content-derived names and
+  the references in the body, header and footer are rewritten for the render.
+- `/compile`, `preview?format=html` and `inputHash` still carry the portable
+  `./assets/...` form; nothing about the template syntax changed.
+- Affected every template with an image or a custom font, including the seeded
+  demo (its `@font-face` sources never resolved; the same fonts being installed
+  in the image masked it).
+
+**Fix: a sub-resource that fails to load now fails the render**
+- The adapter sets `failOnResourceLoadingFailed` and
+  `failOnResourceHttpStatusCodes`, and maps the renderer's 409 to a new
+  non-retriable `RENDER_RESOURCE_FAILED` (502). A missing image, font or
+  stylesheet is a loud error on the first render instead of a PDF without it.
+- Covers references the validator cannot see (`srcset`, `poster`, a linked
+  stylesheet's internals), which were previously dropped silently.
+
+**Verification**
+- `scripts/verify-assets.sh` renders against a real renderer and asserts the
+  image is embedded (body and footer), that `/compile` stays portable, that the
+  demo self-test passes with the strict flag on, and that a missing sub-resource
+  returns `RENDER_RESOURCE_FAILED`.
+
 ## 1.1.1 — 2026-11
 
 **Idle memory**

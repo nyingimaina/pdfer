@@ -121,6 +121,18 @@ Classify before you retry:
 Never turn a failure into an empty PDF. A blank document reaching a customer is
 worse than an error the caller can handle.
 
+That rule needs an enforcement point at the *renderer* boundary, not only in the
+engine. Gotenberg accepts a multipart filename, keeps only its base name (a
+path-traversal guard), and treats a failed sub-resource as non-fatal — so a
+template could reference `./assets/logo.png`, validate cleanly, render 200, and
+lose the image. The adapter therefore uploads assets under flat, content-derived
+names, rewrites the references in the copy it renders, and sets
+`failOnResourceLoadingFailed`, mapping the renderer's 409 to a non-retriable
+`RENDER_RESOURCE_FAILED`. Two consequences worth remembering: the rewrite must
+happen after the input hash so `/compile` and provenance stay portable, and any
+reference the validator does not extract (`srcset`, `poster`) cannot be
+rewritten — it now fails loudly instead of disappearing.
+
 ## Testing strategy that works
 
 1. **Golden HTML** for every template construct — cheap, exact, catches drift.

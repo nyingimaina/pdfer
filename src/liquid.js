@@ -4,6 +4,7 @@ const { Liquid } = require('liquidjs');
 const { EngineError } = require('./errors');
 const { suggest } = require('./util');
 const { normalizeText } = require('./util');
+const { REFERENCE_PATTERNS } = require('./references');
 
 /**
  * Liquid subset enforcement and static analysis (SPEC v1.1 N7–N11, §3.10).
@@ -478,12 +479,7 @@ function analyze(sourceInput, schema, options = {}) {
     }
   }
 
-  const referencePatterns = [
-    /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi,
-    /@import\s+(?:url\(\s*['"]?)?(['"]?)([^'")\s;]+)\1/gi,
-    /\bsrc\s*=\s*(['"]?)([^'"\s>]+)\1/gi,
-    /\bhref\s*=\s*(['"]?)([^'"\s>]+)\1/gi
-  ];
+  const referencePatterns = REFERENCE_PATTERNS;
   const assetRefs = new Set();
   for (const re of referencePatterns) {
     re.lastIndex = 0;

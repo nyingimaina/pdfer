@@ -43,6 +43,7 @@ const CODES = Object.freeze({
   RENDERER_UNAVAILABLE: { status: 503, retriable: true },
   RENDER_TIMEOUT: { status: 504, retriable: true },
   RENDER_FAILED: { status: 502, retriable: true },
+  RENDER_RESOURCE_FAILED: { status: 502, retriable: false },
   RENDER_QUEUE_FULL: { status: 503, retriable: true },
   OUTPUT_WRITE_FAILED: { status: 500, retriable: true },
   ARTIFACT_NOT_FOUND: { status: 404, retriable: false },

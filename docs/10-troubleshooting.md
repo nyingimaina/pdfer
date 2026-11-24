@@ -49,6 +49,7 @@ the renderer is not: check the container's stderr and memory.
 | `RENDERER_UNAVAILABLE` | 503 | renderer down or not ready | check the container; retry |
 | `RENDER_TIMEOUT` | 504 | exceeded `PDFER_RENDER_TIMEOUT_MS` | raise the timeout or reduce the document |
 | `RENDER_FAILED` | 502 | renderer returned an error or a non-PDF | read the logged renderer message |
+| `RENDER_RESOURCE_FAILED` | 502 | an image, font or stylesheet in the template could not be loaded | fix the reference; it is not retried |
 | `RENDER_QUEUE_FULL` | 503 | concurrency + queue exhausted | retry, or raise limits |
 | `OUTPUT_TOO_LARGE` | 500 | PDF over 100 MiB | split the document |
 | `OUTPUT_WRITE_FAILED` | 500 | `/data` not writable or full | check the volume |

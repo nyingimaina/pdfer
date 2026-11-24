@@ -165,6 +165,11 @@ Reference them from templates as `./assets/logo.png`. When a request omits
 `assets`, the engine bundles every referenced path that exists in the tenant
 store; when it supplies them, that list is authoritative.
 
+A sub-resource that cannot be loaded fails the render with `502
+RENDER_RESOURCE_FAILED` (not retriable) instead of yielding a PDF without it.
+The response's `details.detail` carries the renderer's message, which names the
+resource *type* (image, font) and the network error, not the path.
+
 ## Errors
 
 | Status | Meaning |
@@ -176,6 +181,7 @@ store; when it supplies them, that list is authoritative.
 | `413` | a size limit was exceeded |
 | `422` | the body could not be parsed |
 | `429` | rate limited (only if enabled) |
+| `502` | the renderer failed, or a resource in the template could not be loaded |
 | `503` / `504` | renderer unavailable / timed out — retry with backoff |
 | `500` | unexpected; never includes internals |
 
